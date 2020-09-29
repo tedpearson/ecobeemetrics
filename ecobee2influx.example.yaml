@@ -1,0 +1,14 @@
+influxdb:
+  host: http://localhost:8086
+  user: user
+  password: password
+  database: ecobee
+  measurements:
+    thermostat: thermostat
+    sensor: sensor
+
+ecobee:
+  thermostat_id: YOUR_THERMOSTAT_ID
+  app_id: YOUR_APP_ID
+  auth_cache_file: /tmp/ecobee-auth-cache
+  poll_frequency: 3m
