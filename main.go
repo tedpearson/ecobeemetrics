@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/iancoleman/strcase"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-	"github.com/rspier/go-ecobee/ecobee"
+	"github.com/tedpearson/go-ecobee/ecobee"
 	"github.com/spf13/viper"
 	"log"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -36,13 +38,34 @@ func main() {
 		log.Fatalf("Couldn't decode config: %+v", err)
 	}
 
+	getPin := flag.Bool("getpin", false, "Get ecobee pin only")
+	saveToken := flag.String("savetoken", "", "Ecobee code to get auth token")
+	flag.Parse()
+	if *getPin {
+		pinResponse, err := ecobee.GetPin(config.Ecobee.AppId)
+		if err != nil {
+			log.Fatalf("Error authorizing with ecobee: %+v", errors.WithStack(err))
+		}
+		fmt.Printf("Ecobee PIN: %s\n", pinResponse.EcobeePin)
+		fmt.Printf("Ecobee code: %s\n", pinResponse.Code)
+		os.Exit(0)
+	}
+	if *saveToken != "" {
+		err = ecobee.SaveToken(config.Ecobee.AppId, config.Ecobee.AuthCacheFile, *saveToken)
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+		os.Exit(0)
+	}
+
 	// create ecobee client
 	e := ecobee.NewClient(config.Ecobee.AppId, config.Ecobee.AuthCacheFile)
+	id := config.Ecobee.ThermostatId
+
 	// create influx client
 	ic := config.InfluxDB
 	influx := influxdb2.NewClient(ic.Host, ic.User+":"+ic.Password)
 
-	id := config.Ecobee.ThermostatId
 	d, err := time.ParseDuration(config.Ecobee.PollFrequency)
 	if err != nil {
 		log.Fatalf("Can't parse poll frequency '%s' from config", config.Ecobee.PollFrequency)
