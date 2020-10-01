@@ -9,7 +9,7 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-	"github.com/tedpearson/go-ecobee/ecobee"
+	"github.com/rspier/go-ecobee/ecobee"
 	"github.com/spf13/viper"
 	"log"
 	"os"
@@ -42,7 +42,7 @@ func main() {
 	saveToken := flag.String("savetoken", "", "Ecobee code to get auth token")
 	flag.Parse()
 	if *getPin {
-		pinResponse, err := ecobee.GetPin(config.Ecobee.AppId)
+		pinResponse, err := ecobee.Authorize(config.Ecobee.AppId)
 		if err != nil {
 			log.Fatalf("Error authorizing with ecobee: %+v", errors.WithStack(err))
 		}
