@@ -1,0 +1,84 @@
+name: release
+
+on:
+  tags:
+    - 'v*'
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: go get -v -t -d ./...
+
+      - name: Build linux-arm
+        run: env GOOS=linux GOARCH=arm go build -v .
+      - name: rename linux arm
+        run: mv ecobee2influx ecobee2influx-linux-arm
+
+      - name: Build linux-amd64
+        run: env GOOS=linux GOARCH=amd64 go build -v .
+      - name: rename linux amd64
+        run: mv ecobee2influx ecobee2influx-linux-amd64
+
+      - name: Build darwin-amd64
+        run: env GOOS=darwin GOARCH=amd64 go build -v .
+      - name: rename darwin amd64
+        run: mv ecobee2influx ecobee2influx-darwin-amd64
+
+      - name: Test
+        run: go test -v .
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{github.ref}}
+          release_name: ${{github.ref}}
+
+      - name: Upload linux-arm
+        uses: actions/upload-release-asset@v1
+        env:
+          # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ecobee2influx-linux-arm
+        asset_name: ecobee2influx-linux-arm
+        asset_content_type: application/octet-stream
+
+      - name: Upload linux-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ecobee2influx-linux-amd64
+        asset_name: ecobee2influx-linux-amd64
+        asset_content_type: application/octet-stream
+
+      - name: Upload darwin-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ecobee2influx-darwin-amd64
+        asset_name: ecobee2influx-darwin-amd64
+        asset_content_type: application/octet-stream
+
+
