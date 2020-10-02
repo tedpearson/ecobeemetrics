@@ -57,29 +57,32 @@ jobs:
         env:
           # This token is provided by Actions, you do not need to create your own token
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ecobee2influx-linux-arm
-        asset_name: ecobee2influx-linux-arm
-        asset_content_type: application/octet-stream
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ecobee2influx-linux-arm
+          asset_name: ecobee2influx-linux-arm
+          asset_content_type: application/octet-stream
 
       - name: Upload linux-amd64
         uses: actions/upload-release-asset@v1
         env:
           # This token is provided by Actions, you do not need to create your own token
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ecobee2influx-linux-amd64
-        asset_name: ecobee2influx-linux-amd64
-        asset_content_type: application/octet-stream
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ecobee2influx-linux-amd64
+          asset_name: ecobee2influx-linux-amd64
+          asset_content_type: application/octet-stream
 
       - name: Upload darwin-amd64
         uses: actions/upload-release-asset@v1
         env:
           # This token is provided by Actions, you do not need to create your own token
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ecobee2influx-darwin-amd64
-        asset_name: ecobee2influx-darwin-amd64
-        asset_content_type: application/octet-stream
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ecobee2influx-darwin-amd64
+          asset_name: ecobee2influx-darwin-amd64
+          asset_content_type: application/octet-stream
 
 
