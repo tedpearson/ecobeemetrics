@@ -1,4 +1,4 @@
-module ecobee2influx
+module github.com/tedpearson/ecobee2influx
 
 go 1.15
 
