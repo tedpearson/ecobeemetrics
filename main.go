@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"github.com/iancoleman/strcase"
-	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	influxdb1 "github.com/influxdata/influxdb1-client/v2"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/rspier/go-ecobee/ecobee"
@@ -64,7 +62,11 @@ func main() {
 
 	// create influx client
 	ic := config.InfluxDB
-	influx := influxdb2.NewClient(ic.Host, ic.User+":"+ic.Password)
+	influx, err := influxdb1.NewHTTPClient(influxdb1.HTTPConfig{
+		Addr:     ic.Host,
+		Username: ic.User,
+		Password: ic.Password,
+	})
 
 	d, err := time.ParseDuration(config.Ecobee.PollFrequency)
 	if err != nil {
@@ -79,7 +81,7 @@ func main() {
 	// todo: create utility to just authorize the app
 }
 
-func run(e *ecobee.Client, influx influxdb2.Client, id string, config Config, runtimeRev string) string {
+func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, runtimeRev string) string {
 	now := time.Now()
 
 	tsm, err := e.GetThermostatSummary(
@@ -127,7 +129,7 @@ func run(e *ecobee.Client, influx influxdb2.Client, id string, config Config, ru
 		AuxHeat3:        s.AuxHeat3,
 		Fan:             s.Fan,
 		Idle: !s.HeatPump && !s.HeatPump2 && !s.HeatPump3 && !s.CompCool1 && !s.CompCool2 && !s.AuxHeat1 &&
-				!s.AuxHeat2 && !s.AuxHeat3 && !s.Fan,
+			!s.AuxHeat2 && !s.AuxHeat3 && !s.Fan,
 	}
 
 	sensors := make([]Sensor, len(t.RemoteSensors)+1)
@@ -181,30 +183,44 @@ func run(e *ecobee.Client, influx influxdb2.Client, id string, config Config, ru
 			Occupancy:   AllOccupancy(sensors),
 		},
 	}
-	sensors[len(sensors)-1] = thermSensor
-	points := make([]*write.Point, len(sensors)+1)
-	for i, sensor := range sensors {
-		points[i] = FieldsToPoint(sensor.SensorFields, now, sensor.Name, config.InfluxDB.Measurements.Sensor)
-	}
-	points[len(points)-1] = FieldsToPoint(therm, now, t.Name, config.InfluxDB.Measurements.Thermostat)
-
 	log.Printf("--- Got updated data on thermostat and %d sensors from Ecobee ---", len(t.RemoteSensors))
-	WriteToInflux(points, influx, config.InfluxDB.Database)
+	sensors[len(sensors)-1] = thermSensor
+
+	points, err := influxdb1.NewBatchPoints(influxdb1.BatchPointsConfig{
+		Precision:       "ns",
+		Database:        config.InfluxDB.Database,
+		RetentionPolicy: config.InfluxDB.RetentionPolicy,
+	})
+	if err != nil {
+		log.Printf("Failed to make BatchPoints: %+v", errors.WithStack(err))
+		return ""
+	}
+
+	addPoint := func(metric interface{}, name string, measurement string) {
+		point, err := FieldsToPoint(metric, now, name, measurement)
+		if err != nil {
+			log.Printf("Failed to create point: %+v", errors.WithStack(err))
+		} else {
+			points.AddPoint(point)
+		}
+	}
+
+	for _, sensor := range sensors {
+		addPoint(sensor.SensorFields, sensor.Name, config.InfluxDB.Measurements.Sensor)
+	}
+	addPoint(therm, t.Name, config.InfluxDB.Measurements.Thermostat)
+
+	err = influx.Write(points)
+	if err != nil {
+		log.Printf("Write failed: %+v", errors.WithStack(err))
+	}
 	return s.RuntimeRevision
 }
 
-func WriteToInflux(points []*write.Point, client influxdb2.Client, bucket string) {
-	writeApi := client.WriteAPIBlocking("", bucket)
-	err := writeApi.WritePoint(context.Background(), points...)
-	if err != nil {
-		log.Printf("%+v", errors.WithStack(err))
-	}
-	log.Printf("Wrote %d points to influxdb", len(points))
-}
-
-func FieldsToPoint(i interface{}, now time.Time, name string, measurement string) *write.Point {
-	point := influxdb2.NewPointWithMeasurement(measurement).SetTime(now).AddTag("name", name)
-	e := reflect.ValueOf(i)
+func FieldsToPoint(value interface{}, now time.Time, name string, measurement string) (*influxdb1.Point, error) {
+	tags := map[string]string{"name": name}
+	fields := make(map[string]interface{})
+	e := reflect.ValueOf(value)
 	for i := 0; i < e.NumField(); i++ {
 		name := strcase.ToSnake(e.Type().Field(i).Name)
 		field := e.Field(i)
@@ -213,9 +229,9 @@ func FieldsToPoint(i interface{}, now time.Time, name string, measurement string
 			continue
 		}
 		val := reflect.Indirect(field).Interface()
-		point.AddField(name, val)
+		fields[name] = val
 	}
-	return point
+	return influxdb1.NewPoint(measurement, tags, fields, now)
 }
 
 func EquipmentStatus(status ecobee.EquipmentStatus) string {
@@ -267,11 +283,12 @@ func AllOccupancy(sensors []Sensor) bool {
 
 type Config struct {
 	InfluxDB struct {
-		Host         string
-		User         string
-		Password     string
-		Database     string
-		Measurements struct {
+		Host            string
+		User            string
+		Password        string
+		Database        string
+		RetentionPolicy string `mapstructure:"retention_policy"`
+		Measurements    struct {
 			Thermostat string
 			Sensor     string
 		}
@@ -302,7 +319,6 @@ type ThermostatFields struct {
 	Idle            bool
 }
 
-// note: includes calculated temp for thermostat
 type SensorFields struct {
 	Temperature float64
 	Occupancy   bool // note: may need string also for discrete graph?

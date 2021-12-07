@@ -3,6 +3,7 @@ influxdb:
   user: user
   password: password
   database: ecobee
+  retention_policy: autogen
   measurements:
     thermostat: thermostat
     sensor: sensor
