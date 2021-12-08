@@ -187,9 +187,7 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 	sensors[len(sensors)-1] = thermSensor
 
 	points, err := influxdb1.NewBatchPoints(influxdb1.BatchPointsConfig{
-		Precision:       "ns",
-		Database:        config.InfluxDB.Database,
-		RetentionPolicy: config.InfluxDB.RetentionPolicy,
+		Database: config.InfluxDB.Database,
 	})
 	if err != nil {
 		log.Printf("Failed to make BatchPoints: %+v", errors.WithStack(err))
@@ -283,12 +281,11 @@ func AllOccupancy(sensors []Sensor) bool {
 
 type Config struct {
 	InfluxDB struct {
-		Host            string
-		User            string
-		Password        string
-		Database        string
-		RetentionPolicy string `mapstructure:"retention_policy"`
-		Measurements    struct {
+		Host         string
+		User         string
+		Password     string
+		Database     string
+		Measurements struct {
 			Thermostat string
 			Sensor     string
 		}
