@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/go-co-op/gocron"
 	"github.com/iancoleman/strcase"
 	influxdb1 "github.com/influxdata/influxdb1-client/v2"
 	"github.com/mitchellh/go-homedir"
@@ -68,20 +69,19 @@ func main() {
 		Password: ic.Password,
 	})
 
-	d, err := time.ParseDuration(config.Ecobee.PollFrequency)
+	s := gocron.NewScheduler(time.UTC)
+	_, err = s.Cron(config.Ecobee.PollCron).WaitForSchedule().SingletonMode().Do(run, e, influx, id, config)
 	if err != nil {
-		log.Fatalf("Can't parse poll frequency '%s' from config", config.Ecobee.PollFrequency)
+		log.Fatalf("Failed to schedule: %+v", err)
 	}
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
-	runtimeRev := ""
-	for ; true; <-ticker.C {
-		runtimeRev = run(e, influx, id, config, runtimeRev)
-	}
+	s.StartBlocking()
+
 	// todo: create utility to just authorize the app
 }
 
-func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, runtimeRev string) string {
+var lastRevision string
+
+func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config) {
 	now := time.Now()
 
 	tsm, err := e.GetThermostatSummary(
@@ -92,13 +92,9 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 		})
 	if err != nil {
 		log.Printf("error retrieving thermostat s for %s: %v", id, err)
-		return runtimeRev
+		return
 	}
 	s := tsm[id]
-	if s.RuntimeRevision == runtimeRev {
-		log.Println("--- No Update ---")
-		return runtimeRev
-	}
 
 	ts, err := e.GetThermostats(ecobee.Selection{
 		SelectionType:  "thermostats",
@@ -110,10 +106,15 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 	})
 	if err != nil {
 		log.Printf("error retrieving thermostat: %v", err)
-		return runtimeRev
+		return
 	}
 
 	t := ts[0]
+	if s.RuntimeRevision == lastRevision {
+		log.Println("--- No Update ---")
+	} else {
+		log.Printf("--- Got updated data on thermostat and %d sensors from Ecobee ---", len(t.RemoteSensors))
+	}
 	therm := ThermostatFields{
 		CoolingSetpoint: float64(t.Runtime.DesiredCool) / 10,
 		HeatingSetpoint: float64(t.Runtime.DesiredHeat) / 10,
@@ -183,7 +184,6 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 			Occupancy:   AllOccupancy(sensors),
 		},
 	}
-	log.Printf("--- Got updated data on thermostat and %d sensors from Ecobee ---", len(t.RemoteSensors))
 	sensors[len(sensors)-1] = thermSensor
 
 	points, err := influxdb1.NewBatchPoints(influxdb1.BatchPointsConfig{
@@ -191,7 +191,7 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 	})
 	if err != nil {
 		log.Printf("Failed to make BatchPoints: %+v", errors.WithStack(err))
-		return ""
+		return
 	}
 
 	addPoint := func(metric interface{}, name string, measurement string) {
@@ -207,12 +207,12 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config, ru
 		addPoint(sensor.SensorFields, sensor.Name, config.InfluxDB.Measurements.Sensor)
 	}
 	addPoint(therm, t.Name, config.InfluxDB.Measurements.Thermostat)
-
 	err = influx.Write(points)
 	if err != nil {
 		log.Printf("Write failed: %+v", errors.WithStack(err))
 	}
-	return s.RuntimeRevision
+	lastRevision = s.RuntimeRevision
+	return
 }
 
 func FieldsToPoint(value interface{}, now time.Time, name string, measurement string) (*influxdb1.Point, error) {
@@ -294,7 +294,7 @@ type Config struct {
 		ThermostatId  string `mapstructure:"thermostat_id"`
 		AppId         string `mapstructure:"app_id"`
 		AuthCacheFile string `mapstructure:"auth_cache_file"`
-		PollFrequency string `mapstructure:"poll_frequency"`
+		PollCron      string `mapstructure:"poll_cron"`
 	}
 }
 
