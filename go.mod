@@ -1,4 +1,4 @@
-module github.com/tedpearson/ecobee2influx
+module github.com/tedpearson/ecobeemetrics
 
 go 1.17
 

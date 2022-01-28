@@ -10,5 +10,5 @@ influxdb:
 ecobee:
   thermostat_id: YOUR_THERMOSTAT_ID
   app_id: YOUR_APP_ID
-  auth_cache_file: /var/lib/ecobee2influx/auth-cache
+  auth_cache_file: /var/lib/ecobeemetrics/auth-cache
   poll_cron: "* * * * *"

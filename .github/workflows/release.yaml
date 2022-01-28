@@ -25,19 +25,13 @@ jobs:
         run: go get -v -t -d ./...
 
       - name: Build linux-arm
-        run: env GOOS=linux GOARCH=arm go build -v .
-      - name: rename linux arm
-        run: mv ecobee2influx ecobee2influx-linux-arm
+        run: env GOOS=linux GOARCH=arm go build -v -o ecobeemetrics-linux-arm .
 
       - name: Build linux-amd64
-        run: env GOOS=linux GOARCH=amd64 go build -v .
-      - name: rename linux amd64
-        run: mv ecobee2influx ecobee2influx-linux-amd64
+        run: env GOOS=linux GOARCH=amd64 go build -v -o ecobeemetrics-linux-amd64 .
 
       - name: Build darwin-amd64
-        run: env GOOS=darwin GOARCH=amd64 go build -v .
-      - name: rename darwin amd64
-        run: mv ecobee2influx ecobee2influx-darwin-amd64
+        run: env GOOS=darwin GOARCH=amd64 go build -v -o ecobeemetrics-darwin-amd64 .
 
       - name: Test
         run: go test -v .
@@ -59,8 +53,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ecobee2influx-linux-arm
-          asset_name: ecobee2influx-linux-arm
+          asset_path: ecobeemetrics-linux-arm
+          asset_name: ecobeemetrics-linux-arm
           asset_content_type: application/octet-stream
 
       - name: Upload linux-amd64
@@ -70,8 +64,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ecobee2influx-linux-amd64
-          asset_name: ecobee2influx-linux-amd64
+          asset_path: ecobeemetrics-linux-amd64
+          asset_name: ecobeemetrics-linux-amd64
           asset_content_type: application/octet-stream
 
       - name: Upload darwin-amd64
@@ -81,8 +75,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ecobee2influx-darwin-amd64
-          asset_name: ecobee2influx-darwin-amd64
+          asset_path: ecobeemetrics-darwin-amd64
+          asset_name: ecobeemetrics-darwin-amd64
           asset_content_type: application/octet-stream
 
 

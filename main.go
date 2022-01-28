@@ -19,7 +19,8 @@ import (
 )
 
 func main() {
-	viper.SetConfigName("ecobee2influx")
+	viper.SetConfigName("ecobeemetrics")
+	viper.AddConfigPath("/etc")
 	viper.AddConfigPath("/usr/local/etc")
 	viper.AddConfigPath("config")
 	home, err := homedir.Dir()
