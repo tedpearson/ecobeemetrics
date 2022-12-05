@@ -5,11 +5,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      release_version:
-        description: Version to release (vX.X.X)
-        required: true
-        type: string
 
 jobs:
   build:
@@ -36,6 +31,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: Get the tag
+        id: tag_name
+        run: echo "TAG_NAME=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
 
       - name: Get dependencies
         run: go get -v -t -d ./...
@@ -46,11 +46,6 @@ jobs:
       - name: Build
         run: env GOOS=${{matrix.GOOS}} GOARCH=${{matrix.GOARCH}} go build -v -o ${{env.executable}} .
 
-      - name: Fetch all tags
-        run: git fetch --force --tags
-      - name: Get the tag
-        id: tag_name
-        run: echo "TAG_NAME=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
 
       - name: Create or update release
         id: create_release
