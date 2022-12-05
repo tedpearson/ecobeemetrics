@@ -1,21 +1,25 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"github.com/go-co-op/gocron"
-	"github.com/iancoleman/strcase"
-	influxdb1 "github.com/influxdata/influxdb1-client/v2"
-	"github.com/mitchellh/go-homedir"
-	"github.com/pkg/errors"
-	"github.com/rspier/go-ecobee/ecobee"
-	"github.com/spf13/viper"
 	"log"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-co-op/gocron"
+	"github.com/iancoleman/strcase"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/errors"
+	"github.com/rspier/go-ecobee/ecobee"
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -64,14 +68,11 @@ func main() {
 
 	// create influx client
 	ic := config.InfluxDB
-	influx, err := influxdb1.NewHTTPClient(influxdb1.HTTPConfig{
-		Addr:     ic.Host,
-		Username: ic.User,
-		Password: ic.Password,
-	})
+	influx := influxdb2.NewClient(ic.Host, ic.AuthToken)
+	write := influx.WriteAPIBlocking(ic.Org, ic.Bucket)
 
 	s := gocron.NewScheduler(time.UTC)
-	_, err = s.Cron(config.Ecobee.PollCron).WaitForSchedule().SingletonMode().Do(run, e, influx, id, config)
+	_, err = s.Cron(config.Ecobee.PollCron).WaitForSchedule().SingletonMode().Do(run, e, write, id, config)
 	if err != nil {
 		log.Fatalf("Failed to schedule: %+v", err)
 	}
@@ -82,7 +83,7 @@ func main() {
 
 var lastRevision string
 
-func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config) {
+func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, id string, config Config) {
 	now := time.Now()
 
 	tsm, err := e.GetThermostatSummary(
@@ -187,28 +188,17 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config) {
 	}
 	sensors[len(sensors)-1] = thermSensor
 
-	points, err := influxdb1.NewBatchPoints(influxdb1.BatchPointsConfig{
-		Database: config.InfluxDB.Database,
-	})
-	if err != nil {
-		log.Printf("Failed to make BatchPoints: %+v", errors.WithStack(err))
-		return
-	}
-
+	points := make([]*write.Point, 0)
 	addPoint := func(metric interface{}, name string, measurement string) {
-		point, err := FieldsToPoint(metric, now, name, measurement)
-		if err != nil {
-			log.Printf("Failed to create point: %+v", errors.WithStack(err))
-		} else {
-			points.AddPoint(point)
-		}
+		point := FieldsToPoint(metric, now, name, measurement)
+		points = append(points, point)
 	}
 
 	for _, sensor := range sensors {
 		addPoint(sensor.SensorFields, sensor.Name, config.InfluxDB.Measurements.Sensor)
 	}
 	addPoint(therm, t.Name, config.InfluxDB.Measurements.Thermostat)
-	err = influx.Write(points)
+	err = writeApi.WritePoint(context.Background(), points...)
 	if err != nil {
 		log.Printf("Write failed: %+v", errors.WithStack(err))
 	}
@@ -216,7 +206,7 @@ func run(e *ecobee.Client, influx influxdb1.Client, id string, config Config) {
 	return
 }
 
-func FieldsToPoint(value interface{}, now time.Time, name string, measurement string) (*influxdb1.Point, error) {
+func FieldsToPoint(value interface{}, now time.Time, name string, measurement string) *write.Point {
 	tags := map[string]string{"name": name}
 	fields := make(map[string]interface{})
 	e := reflect.ValueOf(value)
@@ -230,7 +220,7 @@ func FieldsToPoint(value interface{}, now time.Time, name string, measurement st
 		val := reflect.Indirect(field).Interface()
 		fields[name] = val
 	}
-	return influxdb1.NewPoint(measurement, tags, fields, now)
+	return write.NewPoint(measurement, tags, fields, now)
 }
 
 func EquipmentStatus(status ecobee.EquipmentStatus) string {
@@ -283,9 +273,9 @@ func AllOccupancy(sensors []Sensor) bool {
 type Config struct {
 	InfluxDB struct {
 		Host         string
-		User         string
-		Password     string
-		Database     string
+		AuthToken    string `mapstructure:"auth_token"`
+		Org          string
+		Bucket       string
 		Measurements struct {
 			Thermostat string
 			Sensor     string
@@ -299,7 +289,6 @@ type Config struct {
 	}
 }
 
-// todo: analyze changes made to influxlogger to make graphs work correctly
 type ThermostatFields struct {
 	CoolingSetpoint float64
 	HeatingSetpoint float64
