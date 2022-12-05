@@ -61,3 +61,4 @@ jobs:
           tag: ${{env.TAG_NAME}}
           commit: master
           token: ${{ secrets.GITHUB_TOKEN }}
+          omitBodyDuringUpdate: true
