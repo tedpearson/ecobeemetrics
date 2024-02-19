@@ -273,7 +273,7 @@ func AllOccupancy(sensors []Sensor) bool {
 type Config struct {
 	InfluxDB struct {
 		Host         string
-		AuthToken    string `mapstructure:"auth_token"`
+		AuthToken    string `yaml:"auth_token"`
 		Org          string
 		Bucket       string
 		Measurements struct {
@@ -282,10 +282,10 @@ type Config struct {
 		}
 	}
 	Ecobee struct {
-		ThermostatId  string `mapstructure:"thermostat_id"`
-		AppId         string `mapstructure:"app_id"`
-		AuthCacheFile string `mapstructure:"auth_cache_file"`
-		PollCron      string `mapstructure:"poll_cron"`
+		ThermostatId  string `yaml:"thermostat_id"`
+		AppId         string `yaml:"app_id"`
+		AuthCacheFile string `yaml:"auth_cache_file"`
+		PollCron      string `yaml:"poll_cron"`
 	}
 }
 
