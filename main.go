@@ -16,35 +16,28 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
-	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/rspier/go-ecobee/ecobee"
-	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
-	viper.SetConfigName("ecobeemetrics")
-	viper.AddConfigPath("/etc")
-	viper.AddConfigPath("/usr/local/etc")
-	viper.AddConfigPath("config")
-	home, err := homedir.Dir()
-	if err != nil {
-		viper.AddConfigPath(home)
-	}
-	viper.AddConfigPath(".")
-	err = viper.ReadInConfig()
-	if err != nil {
-		log.Fatalf("Couldn't read config file: %+v", err)
-	}
-	var config Config
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		log.Fatalf("Couldn't decode config: %+v", err)
-	}
-
+	configFile := flag.String("config", "ecobeemetrics.yaml", "Config file")
 	getPin := flag.Bool("getpin", false, "Get ecobee pin only")
 	saveToken := flag.String("savetoken", "", "Ecobee code to get auth token")
 	flag.Parse()
+
+	// read config
+	cf, err := os.ReadFile(*configFile)
+	if err != nil {
+		panic(fmt.Sprintf("Error reading config file %s: %s", configFile, err))
+	}
+	var config Config
+	err = yaml.Unmarshal(cf, &config)
+	if err != nil {
+		panic(fmt.Sprintf("Error loading config from %s: %s", configFile, err))
+	}
+
 	if *getPin {
 		pinResponse, err := ecobee.Authorize(config.Ecobee.AppId)
 		if err != nil {
