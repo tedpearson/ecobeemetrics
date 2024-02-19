@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-co-op/gocron"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/iancoleman/strcase"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
@@ -71,14 +71,21 @@ func main() {
 	influx := influxdb2.NewClient(ic.Host, ic.AuthToken)
 	write := influx.WriteAPIBlocking(ic.Org, ic.Bucket)
 
-	s := gocron.NewScheduler(time.UTC)
-	_, err = s.Cron(config.Ecobee.PollCron).WaitForSchedule().SingletonMode().Do(run, e, write, id, config)
+	s, err := gocron.NewScheduler(gocron.WithLocation(time.UTC))
+	if err != nil {
+		log.Fatalf("Failed to start scheduler: %s", err)
+	}
+	_, err = s.NewJob(
+		gocron.CronJob(config.Ecobee.PollCron, false),
+		gocron.NewTask(run, e, write, id, config),
+		gocron.WithSingletonMode(gocron.LimitModeReschedule),
+	)
 	if err != nil {
 		log.Fatalf("Failed to schedule: %+v", err)
 	}
-	s.StartBlocking()
-
-	// todo: create utility to just authorize the app
+	s.Start()
+	// block forever
+	select {}
 }
 
 var lastRevision string
