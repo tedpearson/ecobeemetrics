@@ -30,12 +30,12 @@ func main() {
 	// read config
 	cf, err := os.ReadFile(*configFile)
 	if err != nil {
-		panic(fmt.Sprintf("Error reading config file %s: %s", configFile, err))
+		panic(fmt.Sprintf("Error reading config file %s: %s", *configFile, err))
 	}
 	var config Config
 	err = yaml.Unmarshal(cf, &config)
 	if err != nil {
-		panic(fmt.Sprintf("Error loading config from %s: %s", configFile, err))
+		panic(fmt.Sprintf("Error loading config from %s: %s", *configFile, err))
 	}
 
 	if *getPin {
