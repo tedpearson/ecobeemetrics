@@ -28,7 +28,7 @@ func main() {
 	configFile := flag.String("config", "ecobeemetrics.yaml", "Config file")
 	getPin := flag.Bool("getpin", false, "Get ecobee pin only")
 	saveToken := flag.String("savetoken", "", "Ecobee code to get auth token")
-	versionFlag := flag.Bool("v", false, "Show version and exit")
+	versionFlag := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
 	fmt.Printf("ecobeemetrics version %s built on %s with %s\n", version, buildDate, goVersion)
 	if *versionFlag {
