@@ -89,6 +89,8 @@ func main() {
 }
 
 var lastRevision string
+var lastUpdate = time.Now()
+var apiFailures int
 
 func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 	now := time.Now()
@@ -102,6 +104,8 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 		})
 	if err != nil {
 		log.Printf("error retrieving thermostat s for %s: %v", id, err)
+		apiFailures++
+		writeAppMetrics(writeApi, apiFailures, lastUpdate, now)
 		return
 	}
 	summary := summaries[id]
@@ -115,15 +119,29 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 	})
 	if err != nil {
 		log.Printf("error retrieving thermostat: %v", err)
+		apiFailures++
+		writeAppMetrics(writeApi, apiFailures, lastUpdate, now)
 		return
 	}
 	thermostat := thermostats[0]
 
-	if summary.RuntimeRevision == lastRevision {
-		log.Println("--- No Update ---")
-	} else {
+	if summary.RuntimeRevision != lastRevision {
+		lastUpdate = now
 		log.Printf("--- Got updated data on thermostat and %d sensors from Ecobee ---", len(thermostat.RemoteSensors))
 	}
+
+	writeAppMetrics(writeApi, apiFailures, lastUpdate, now)
+
+	if summary.RuntimeRevision == lastRevision {
+		if lastUpdate.Add(time.Minute * 15).Before(now) {
+			// don't write any data if it's more than 15 minutes stale
+			log.Println("--- No Update, Stale Data (not writing to database) ---")
+			return
+		}
+		log.Println("--- No Update ---")
+	}
+
+	lastRevision = summary.RuntimeRevision
 
 	thermostatPoint := write.NewPointWithMeasurement(config.InfluxDB.Measurements.Thermostat).
 		SetTime(now).
@@ -194,7 +212,17 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 	if err != nil {
 		fmt.Printf("Write failed: %v\n", err)
 	}
-	lastRevision = summary.RuntimeRevision
+}
+
+func writeAppMetrics(writeApi api.WriteAPIBlocking, apiFailures int, lastUpdate time.Time, now time.Time) {
+	point := write.NewPointWithMeasurement("ecobeemetrics").
+		SetTime(now).
+		AddField("api_failure_total", apiFailures).
+		AddField("last_update_timestamp_seconds", lastUpdate.Unix())
+	err := writeApi.WritePoint(context.Background(), point)
+	if err != nil {
+		fmt.Printf("Write failed: %v\n", err)
+	}
 }
 
 type Config struct {
