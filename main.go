@@ -180,10 +180,12 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 				}
 			}
 			if c.Type == "occupancy" {
+				occ := false
 				if c.Value == "true" {
+					occ = true
 					allOccupancy = true
-					point.AddField("occupancy", true)
 				}
+				point.AddField("occupancy", occ)
 			}
 			if c.Type == "humidity" {
 				hum, err := strconv.ParseFloat(c.Value, 64)
