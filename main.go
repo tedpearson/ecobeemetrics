@@ -148,14 +148,14 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 		AddTag("name", thermostat.Name).
 		AddField("cooling_setpoint", float64(thermostat.Runtime.DesiredCool)/10).
 		AddField("heating_setpoint", float64(thermostat.Runtime.DesiredHeat)/10).
-		AddField("heat1", summary.HeatPump).
-		AddField("heat2", summary.HeatPump2).
-		AddField("heat3", summary.HeatPump3).
-		AddField("cool1", summary.CompCool1).
-		AddField("cool2", summary.CompCool2).
-		AddField("aux_heat1", summary.AuxHeat1).
-		AddField("aux_heat2", summary.AuxHeat2).
-		AddField("aux_heat3", summary.AuxHeat3).
+		AddField("heat_1", summary.HeatPump).
+		AddField("heat_2", summary.HeatPump2).
+		AddField("heat_3", summary.HeatPump3).
+		AddField("cool_1", summary.CompCool1).
+		AddField("cool_2", summary.CompCool2).
+		AddField("aux_heat_1", summary.AuxHeat1).
+		AddField("aux_heat_2", summary.AuxHeat2).
+		AddField("aux_heat_3", summary.AuxHeat3).
 		AddField("fan", summary.Fan).
 		AddField("idle", !summary.HeatPump && !summary.HeatPump2 && !summary.HeatPump3 && !summary.CompCool1 &&
 			!summary.CompCool2 && !summary.AuxHeat1 && !summary.AuxHeat2 && !summary.AuxHeat3 && !summary.Fan)
