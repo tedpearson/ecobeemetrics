@@ -1,6 +1,6 @@
 module github.com/tedpearson/ecobeemetrics
 
-go 1.21
+go 1.23.4
 
 require (
 	github.com/go-co-op/gocron/v2 v2.14.0
