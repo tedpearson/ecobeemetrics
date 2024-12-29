@@ -103,7 +103,7 @@ func run(e *ecobee.Client, writeApi api.WriteAPIBlocking, config Config) {
 			IncludeEquipmentStatus: true,
 		})
 	if err != nil {
-		log.Printf("error retrieving thermostat s for %s: %v", id, err)
+		log.Printf("error retrieving thermostats for %s: %v", id, err)
 		apiFailures++
 		writeAppMetrics(writeApi, apiFailures, lastUpdate, now)
 		return
