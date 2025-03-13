@@ -18,6 +18,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
 )
