@@ -3,7 +3,7 @@ module github.com/tedpearson/ecobeemetrics
 go 1.24.0
 
 require (
-	github.com/go-co-op/gocron/v2 v2.20.0
+	github.com/go-co-op/gocron/v2 v2.21.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/rspier/go-ecobee v0.0.0-20240630053119-3d6347a13d73
 	gopkg.in/yaml.v3 v3.0.1
